@@ -1,0 +1,25 @@
+services:
+  web:
+    image: "web-all"
+    build: .
+    ports:
+      - "0:5000"
+  load_balancer:
+    image: "load-balancer"
+    ports:
+      - "80:80"
+  redis:
+    image: "redis:alpine"
+ 
+# feel free to change the above setup according to you.
+# or you don't need add load_balancer image over here, you can simply build it using Dockerfile, and just do this:
+services:
+  web:
+    image: "web-all"
+    build: .
+    ports:
+      - "80:80"     #note: in this case, load_balancer is already running at some load_balancer.py at port 80 , and we are exposing it as port 80 to the host
+  redis:
+    image: "redis:alpine"
+
+#round-robin, probalistic, 
