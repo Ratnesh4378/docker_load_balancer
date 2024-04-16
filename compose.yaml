@@ -1,0 +1,8 @@
+services:
+  web:
+    image: "web-all"
+    build: .
+    ports:
+      - "0:5000"
+  redis:
+    image: "redis:alpine"
