@@ -1,7 +1,11 @@
 import time
-
 import redis
 from flask import Flask
+import request
+from prometheus_client import Counter, generate_latest, REGISTRY
+from flask import Response
+
+
 
 app = Flask(__name__)
 cache = redis.Redis(host='redis', port=6379)
@@ -17,7 +21,24 @@ def get_hit_count():
             retries -= 1
             time.sleep(0.5)
 
+# Expose a Prometheus metrics endpoint
+@app.route('/metrics')
+def metrics():
+    return Response(generate_latest(), mimetype="text/plain")
+
+@app.before_request
+def before_request():
+    global port
+    port = request.environ.get('REMOTE_PORT')
+
 @app.route('/')
 def hello():
     count = get_hit_count()
-    return 'Hello World! I have been seen {} times.\n'.format(count)
+    return 'Hello World! I have been seen {} times. Load balancer is talking to port {}.\n'.format(count, port)
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=5000)
+
+#14b5076391b1
+#f468f9f6ad26
+#aeadea41b938
