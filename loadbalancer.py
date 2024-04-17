@@ -5,9 +5,9 @@ app = Flask(__name__)
 
 # List of replica URLs
 replicas = [
-    'http://localhost:32771',
-    'http://localhost:32772',
-    'http://localhost:32773',
+    'http://localhost:32777',
+    'http://localhost:32778',
+    'http://localhost:32779',
     # Add more replica URLs as needed
 ]
 
