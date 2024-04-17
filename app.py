@@ -1,7 +1,7 @@
 import time
 import redis
+import socket
 from flask import Flask
-import request
 from prometheus_client import Counter, generate_latest, REGISTRY
 from flask import Response
 
@@ -26,15 +26,11 @@ def get_hit_count():
 def metrics():
     return Response(generate_latest(), mimetype="text/plain")
 
-@app.before_request
-def before_request():
-    global port
-    port = request.environ.get('REMOTE_PORT')
 
 @app.route('/')
 def hello():
     count = get_hit_count()
-    return 'Hello World! I have been seen {} times. Load balancer is talking to port {}.\n'.format(count, port)
+    return 'hey !! Hello World! I have been seen {} times.Hostname: {}\n'.format(count,socket.gethostname())
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000)
