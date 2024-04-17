@@ -1,16 +1,29 @@
 from flask import Flask, request
 import requests
-
+import subprocess
 app = Flask(__name__)
 
 # List of replica URLs
-replicas = [
-    'http://localhost:32777',
-    'http://localhost:32778',
-    'http://localhost:32779',
-    # Add more replica URLs as needed
-]
 
+def get_replicas():
+    # Run docker ps command to get container information
+    result = subprocess.run(['docker', 'ps'], capture_output=True, text=True)
+    
+    # Split the output by lines
+    lines = result.stdout.split('\n')
+    
+    replicas = []
+    
+    # Iterate over each line to find containers with image "web-all"
+    for line in lines[1:]:  # Skip the header line
+        if "web-all" in line:
+            # Extract the port from the PORTS column
+            port = line.split("->")[0].split(":")[-1]
+            replicas.append(f'http://localhost:{port}')
+    
+    return replicas
+
+replicas=get_replicas()
 # Index to keep track of the next replica to use
 current_replica = 0
 
