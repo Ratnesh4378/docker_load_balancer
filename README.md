@@ -30,6 +30,39 @@ open another terminal and run:
 docker compose -f compose.yaml down
 
 
+## -------How to run Load Balancer------------
+
+Either you can run : docker compose -f compose.yaml up --scale web=[NO_OF_REPLICAS] , or You can directly run : python3 loadbalancer.py
+
+### case 1: First you ran docker compose -f compose.yaml up --scale web=[NO_OF_REPLICAS]
+
+In this case, you run:\
+python3 loadbalancer.py 
+
+As and when outputs become stable in loadbalancer terminal, then you can scale the replicas by running the following command in the loadbalancer terminal:\
+docker compose -f compose.yaml up --scale web=[NO_OF_REPLICAS]
+
+
+### case 2: You can run , python3 loadbalancer.py
+
+In this case , you need to run the following command to start the web server containers:\
+docker compose -f compose.yaml up --scale web=[NO_OF_REPLICAS]
+
+After this you can scale the replicas anytime, by running the following command in the loadbalancer terminal:\
+docker compose -f compose.yaml up --scale web=[NO_OF_REPLICAS]
+
+
+
+
+NOTE: In either cases, while scaling , when you provide the number of replicas , these are the replicas you need to run currently:\
+For eg. if 3 web servers are running currently , and you need to add one more server then you need to run the following command:\
+docker compose -f compose.yaml up --scale web=4
+
+And if you want to remove one server then you need to run:\
+docker compose -f compose.yaml up --scale web=2
+
+
+
 ## ------- Future Step ------------
 
 services:
