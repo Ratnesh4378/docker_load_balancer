@@ -79,15 +79,21 @@ scale_thread.start()
 
 # Index to keep track of the next replica to use
 current_replica = 0
-
+i=0
 @app.route('/')
 def index():
     global current_replica
     global replicas
+    global i
 
     # Acquire lock before accessing replicas array
     with lock:
         # Select the next replica in a round-robin fashion
+        # i+=1
+        # if i==2:
+        #     time.sleep(100)
+
+        print(f"========== {current_replica}==========")
         get_replicas()
         print(f"Replicas:{replicas}")
         print(f"Length of replicas:{len(replicas)}")
@@ -104,4 +110,4 @@ def index():
 if __name__ == '__main__':
     # Initialize replicas array
     get_replicas()
-    app.run(debug=True)
+    app.run(debug=True,threaded=True)

@@ -51,7 +51,8 @@ docker compose -f compose.yaml up --scale web=[NO_OF_REPLICAS]
 After this you can scale the replicas anytime, by running the following command in the loadbalancer terminal:\
 docker compose -f compose.yaml up --scale web=[NO_OF_REPLICAS]
 
-
+To run with gunicorn:\
+gunicorn --config gunicorn_config.py loadbalancer:app
 
 
 NOTE: In either cases, while scaling , when you provide the number of replicas , these are the replicas you need to run currently:\
