@@ -42,7 +42,7 @@ def get_replicas():
 
 def scale_listener():
     while True:
-        scale_command = input("Enter scale command (e.g., 'docker-compose -f compose.yaml up --scale web=<number_of_replicas>'): ")
+        scale_command = input("Enter scale command (e.g., 'docker compose -f compose.yaml up --scale web=<number_of_replicas>'): ")
         if "docker compose" in scale_command and "--scale web=" in scale_command:
             # Acquire lock before updating replicas array
             with lock:
@@ -80,6 +80,13 @@ scale_thread.start()
 # Index to keep track of the next replica to use
 current_replica = 0
 i=0
+
+
+def get_least_connection_replica():
+    with lock:
+        least_connection_replica = min(replicas, key=lambda x: x[1])[0]
+        return least_connection_replica
+
 @app.route('/')
 def index():
     global current_replica
@@ -106,6 +113,35 @@ def index():
     # Forward the request to the selected replica
     response = requests.get(replica_url + request.full_path)
     return response.content, response.status_code, response.headers.items()
+
+@app.route('/least-connection')
+def least_connection():
+    global current_replica
+    global replicas
+
+    # Acquire lock before accessing replicas array
+    get_replicas()
+    with lock:
+        if not replicas:
+            return "No replicas available", 503
+        print(f"=========={len(replicas)}=======")
+        least_connection_replica = get_least_connection_replica()
+        for replica, connection_count in replicas:
+            if replica == least_connection_replica:
+                replica_url = replica
+                # Increment connection count for the selected replica
+                replicas[replicas.index((replica, connection_count))] = (replica, connection_count + 1)
+                break
+
+    # Forward the request to the selected replica
+    response = requests.get(replica_url + request.full_path)
+    
+    # Decrement connection count after processing the request
+    with lock:
+        replicas[replicas.index((least_connection_replica, replicas[replicas.index((least_connection_replica, connection_count))][1]))] = (least_connection_replica, connection_count - 1)
+
+    return response.content, response.status_code, response.headers.items()
+
 
 if __name__ == '__main__':
     # Initialize replicas array

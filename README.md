@@ -8,6 +8,8 @@ Load balancer to schedule incoming requests appropriately to different container
 
 docker compose -f compose.yaml up --scale web=[NO_OF_REPLICAS]
 
+docker compose -f compose.yaml up --build --scale web=[NO_OF_REPLICAS]
+
 ## Step 2
 open another terminal
 
@@ -51,7 +53,7 @@ docker compose -f compose.yaml up --scale web=[NO_OF_REPLICAS]
 After this you can scale the replicas anytime, by running the following command in the loadbalancer terminal:\
 docker compose -f compose.yaml up --scale web=[NO_OF_REPLICAS]
 
-To run with gunicorn:\
+#### To run with gunicorn:\
 gunicorn --config gunicorn_config.py loadbalancer:app
 
 
