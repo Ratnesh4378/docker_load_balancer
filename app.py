@@ -30,6 +30,7 @@ def metrics():
 @app.route('/')
 def hello():
     count = get_hit_count()
+    time.sleep(1)
     return 'hey !! Hello World! I have been seen {} times.Hostname: {}\n'.format(count,socket.gethostname())
 
 if __name__ == "__main__":

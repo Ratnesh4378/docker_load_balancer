@@ -7,8 +7,10 @@ app = Flask(__name__)
 
 # Initialize replicas array
 replicas = []
+replica_requests = {}
 # Lock to protect access to replicas array
 lock = threading.Lock()
+cond=threading.Condition()
 replicas_updated_event = threading.Event()
 def get_replicas():
     # Run docker ps command to get container information
@@ -36,10 +38,17 @@ def get_replicas():
     replicas.clear()
 
     # Append the sorted replicas to the replicas list
-    for _, replica_url in sorted_replicas:
-        replicas.append(replica_url)
+    with cond:
+        for _, replica_url in sorted_replicas:
+            replicas.append(replica_url)
+            if replica_url not in replica_requests:
+                    replica_requests[replica_url] = 0
+        
+        for replica_url in list(replica_requests.keys()):
+            if replica_url not in [r[1] for r in sorted_replicas]:
+                del replica_requests[replica_url]
 
-
+'''
 def scale_listener():
     while True:
         scale_command = input("Enter scale command (e.g., 'docker compose -f compose.yaml up --scale web=<number_of_replicas>'): ")
@@ -72,6 +81,35 @@ def scale_listener():
                 # Update the replicas array
                 get_replicas()
                 print("Replicas updated:", replicas)
+'''
+def scale_listener():
+    global replicas
+    while True:
+        # Check the total number of active connections
+        total_active_connections = 0
+        with cond:
+            for request_count in replica_requests.values():
+                total_active_connections += request_count
+        
+        # Determine if scaling is needed
+        get_replicas()
+        if total_active_connections >=len(replicas):
+            # Scale up
+            scale_command = f"docker compose -f compose.yaml up --scale web={len(replicas)+1}"
+            subprocess.run(scale_command, shell=True)
+            print(f"Scaling up with command: {scale_command}")
+        elif len(replicas)>3:
+            # Scale down
+            scale_command = f"docker compose -f compose.yaml up --scale web={len(replicas)-1}"
+            subprocess.run(scale_command, shell=True)
+            print(f"Scaling down with command: {scale_command}")
+        else:
+            # No scaling needed
+            print("No scaling needed")
+        
+        # Wait for a certain interval before checking again
+        time.sleep(5)  # Adjust the interval as needed
+
 
 # Start a separate thread to listen for scaling commands
 scale_thread = threading.Thread(target=scale_listener)
@@ -89,8 +127,10 @@ def get_least_connection_replica():
 
 @app.route('/')
 def index():
+    '''
     global current_replica
     global replicas
+    global replica_requests
     global i
 
     # Acquire lock before accessing replicas array
@@ -99,9 +139,8 @@ def index():
         # i+=1
         # if i==2:
         #     time.sleep(100)
-
-        print(f"========== {current_replica}==========")
         get_replicas()
+        print(f"========== {current_replica}=={len(replica_requests)}==========")
         print(f"Replicas:{replicas}")
         print(f"Length of replicas:{len(replicas)}")
         if current_replica>=len(replicas):
@@ -109,38 +148,42 @@ def index():
         current_replica=current_replica%len(replicas)
         replica_url = replicas[current_replica]
         current_replica = (current_replica + 1) % len(replicas)
+        replica_requests[replica_url] += 1
     
     # Forward the request to the selected replica
     response = requests.get(replica_url + request.full_path)
-    return response.content, response.status_code, response.headers.items()
-
-@app.route('/least-connection')
-def least_connection():
-    global current_replica
-    global replicas
-
-    # Acquire lock before accessing replicas array
-    get_replicas()
     with lock:
+        replica_requests[replica_url] -= 1
+    return response.content, response.status_code, response.headers.items()
+    '''
+    global replicas
+    global replica_requests
+    # Acquire condition lock
+    with cond:
+        get_replicas()
+        # Check if replicas are available
         if not replicas:
             return "No replicas available", 503
-        print(f"=========={len(replicas)}=======")
-        least_connection_replica = get_least_connection_replica()
-        for replica, connection_count in replicas:
-            if replica == least_connection_replica:
-                replica_url = replica
-                # Increment connection count for the selected replica
-                replicas[replicas.index((replica, connection_count))] = (replica, connection_count + 1)
-                break
+        # Sort replica_requests based on active connections
+        sorted_replicas = sorted(replica_requests.items(), key=lambda x: x[1])
+        
+        # Select the replica with the least number of active connections
+        least_connection_replica = sorted_replicas[0][0]
+        replica_requests[least_connection_replica] += 1
+        # Forward the request to the selected replica
+        response = requests.get(least_connection_replica + request.full_path)
+        replica_requests[least_connection_replica] -=1
 
-    # Forward the request to the selected replica
-    response = requests.get(replica_url + request.full_path)
-    
-    # Decrement connection count after processing the request
-    with lock:
-        replicas[replicas.index((least_connection_replica, replicas[replicas.index((least_connection_replica, connection_count))][1]))] = (least_connection_replica, connection_count - 1)
-
+    # Return the response
+    print(f"======{least_connection_replica}========")
     return response.content, response.status_code, response.headers.items()
+
+
+
+@app.route("/least_connection")
+def least_connection():
+    pass
+    
 
 
 if __name__ == '__main__':
