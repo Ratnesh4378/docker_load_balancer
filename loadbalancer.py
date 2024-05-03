@@ -96,7 +96,7 @@ def scale_listener():
                 # No scaling needed
                 print("No scaling needed")
         else:
-            if total_active_connections >=len(replicas_prob):
+            if total_active_connections >=len(replicas_prob) and len(replicas_prob)<=10:
                 # Scale up
                 scale_command = f"docker compose -f compose.yaml up --scale web={len(replicas)+1}"
                 subprocess.run(scale_command, shell=True)
@@ -121,42 +121,42 @@ scale_thread = threading.Thread(target=scale_listener)
 scale_thread.start()
 
 # Index to keep track of the next replica to use
-current_replica = 0
-i=0
+# current_replica = 0
+# i=0
 
 
-def get_least_connection_replica():
-    with lock:
-        least_connection_replica = min(replicas, key=lambda x: x[1])[0]
-        return least_connection_replica
+# def get_least_connection_replica():
+#     with lock:
+#         least_connection_replica = min(replicas, key=lambda x: x[1])[0]
+#         return least_connection_replica
 
-#the following code is for least connection protocol
+# #the following code is for least connection protocol
 
-@app.route('/')
-def index():
-    global current_replica
-    global i
-    global replicas
-    # Acquire condition lock
-    with lock:
-        get_replicas()
-        # Check if replicas are available
-        if not replicas:
-            return "No replicas available", 503
-        # Sort replica_requests based on active connections
-        sorted_replicas = sorted(replica_requests.items(), key=lambda x: x[1])
+# @app.route('/')
+# def index():
+#     global current_replica
+#     global i
+#     global replicas
+#     # Acquire condition lock
+#     with lock:
+#         get_replicas()
+#         # Check if replicas are available
+#         if not replicas:
+#             return "No replicas available", 503
+#         # Sort replica_requests based on active connections
+#         sorted_replicas = sorted(replica_requests.items(), key=lambda x: x[1])
         
-        # Select the replica with the least number of active connections
-        least_connection_replica = sorted_replicas[0][0]
-        replica_requests[least_connection_replica] += 1
-        # Forward the request to the selected replica
-    response = requests.get(least_connection_replica + request.full_path)
+#         # Select the replica with the least number of active connections
+#         least_connection_replica = sorted_replicas[0][0]
+#         replica_requests[least_connection_replica] += 1
+#         # Forward the request to the selected replica
+#     response = requests.get(least_connection_replica + request.full_path)
 
-    with lock:
-        replica_requests[least_connection_replica] -=1
+#     with lock:
+#         replica_requests[least_connection_replica] -=1
 
-    # Return the response
-    return response.content, response.status_code, response.headers.items()
+#     # Return the response
+#     return response.content, response.status_code, response.headers.items()
 
 
 #the following code is for round robin
@@ -193,39 +193,39 @@ def index():
 
 #the following code is for probabilistic load distribution
 
-# @app.route('/')
-# def index():
-#     global replicas_prob
-#     global x 
-#     x=1
+@app.route('/')
+def index():
+    global replicas_prob
+    global x 
+    x=1
     
-#     with lock:
-#     # Calculate total weight of all replicas
-#         total_weight = sum(replicas_prob.values())
-#         logging.info(replicas_prob.values())
+    with lock:
+    # Calculate total weight of all replicas
+        total_weight = sum(replicas_prob.values())
+        logging.info(replicas_prob.values())
 
 
-#         # Calculate probability distribution
-#         probabilities = {replica: weight / total_weight for replica, weight in replicas_prob.items()}
+        # Calculate probability distribution
+        probabilities = {replica: weight / total_weight for replica, weight in replicas_prob.items()}
 
-#         # Generate random number between 0 and 1
-#         rand = random.random()
+        # Generate random number between 0 and 1
+        rand = random.random()
 
-#         # Determine which replica the random number falls into
-#         cumulative_prob = 0
-#         for replica, prob in probabilities.items():
-#             cumulative_prob += prob
-#             if rand < cumulative_prob:
-#                 replica_url = replica
-#                 break
-#         replica_requests[replica_url] += 1
+        # Determine which replica the random number falls into
+        cumulative_prob = 0
+        for replica, prob in probabilities.items():
+            cumulative_prob += prob
+            if rand < cumulative_prob:
+                replica_url = replica
+                break
+        replica_requests[replica_url] += 1
 
 
-#     # Forward the request to the selected replica
-#     response = requests.get(str(replica_url) + request.full_path)
-#     with lock:
-#         replica_requests[replica_url] -= 1
-#     return response.content, response.status_code, response.headers.items()
+    # Forward the request to the selected replica
+    response = requests.get(str(replica_url) + request.full_path)
+    with lock:
+        replica_requests[replica_url] -= 1
+    return response.content, response.status_code, response.headers.items()
     
 
 
